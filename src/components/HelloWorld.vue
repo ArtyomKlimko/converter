@@ -1,41 +1,68 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue';
+import { useRatesStore } from "@/service/store/ratesStore.ts";
+import { storeToRefs } from "pinia";
+import { useRatesModel } from "@/service/models/rates.ts";
+import { localeToCurrencyMap } from "@/service/state/locales.ts";
+import { currencyEmojis } from "@/service/state/currencyEmojis.ts";
 
-defineProps<{ msg: string }>()
+const ratesModel = new useRatesModel();
+const amount = ref<number | null>(null);
+const fromCurrency = ref('USD');
+const toCurrency = ref('EUR');
+const { rates, currencies } = storeToRefs(useRatesStore());
+const result = ref<number | null>(null);
 
-const count = ref(0)
+const convertCurrency = () => {
+  if (amount.value !== null && rates.value && rates.value[fromCurrency.value] !== undefined && rates.value[toCurrency.value] !== undefined) {
+    const rate = rates.value[toCurrency.value] / rates.value[fromCurrency.value];
+    result.value = amount.value * rate;
+  }
+};
+
+const setDefaultCurrency = () => {
+  const userLocale = navigator.language || 'en-US';
+  const defaultCurrency = localeToCurrencyMap[userLocale] || 'USD';
+  if (currencies.value?.includes(defaultCurrency)) {
+    fromCurrency.value = defaultCurrency;
+  }
+};
+
+onMounted(async () => {
+  await ratesModel.getRates();
+  setDefaultCurrency();
+});
 </script>
 
 <template>
-  <h1>{{ msg }}</h1>
+  <div class="conver-money-section">
+    <div class="convert-money-content">
+      <div class="convert-money-item__amount-row">
+        <label for="amount">Amount:</label>
+        <input id="amount" v-model="amount" type="number" @input="convertCurrency" />
+      </div>
 
-  <div class="card">
-    <button type="button" @click="count++">count is {{ count }}</button>
-    <p>
-      Edit
-      <code>components/HelloWorld.vue</code> to test HMR
-    </p>
+      <div class="convert-money-item__from-row">
+        <label for="fromCurrency">From:</label>
+        <select id="fromCurrency" v-model="fromCurrency" @change="convertCurrency">
+          <option v-for="currency in currencies" :key="currency" :value="currency">
+            {{ currency }} {{ currencyEmojis[currency] }}
+          </option>
+        </select>
+      </div>
+
+      <div class="convert-money-item__to-row">
+        <label for="toCurrency">To:</label>
+        <select id="toCurrency" v-model="toCurrency" @change="convertCurrency">
+          <option v-for="currency in currencies" :key="currency" :value="currency">
+            {{ currency }} {{ currencyEmojis[currency] }}
+          </option>
+        </select>
+      </div>
+
+      <div class="convert-money-item__result-row">
+        <p>Result: <strong>{{ result !== null ? result.toFixed(2) : 'N/A' }}</strong></p>
+      </div>
+    </div>
   </div>
-
-  <p>
-    Check out
-    <a href="https://vuejs.org/guide/quick-start.html#local" target="_blank"
-      >create-vue</a
-    >, the official Vue + Vite starter
-  </p>
-  <p>
-    Learn more about IDE Support for Vue in the
-    <a
-      href="https://vuejs.org/guide/scaling-up/tooling.html#ide-support"
-      target="_blank"
-      >Vue Docs Scaling up Guide</a
-    >.
-  </p>
-  <p class="read-the-docs">Click on the Vite and Vue logos to learn more</p>
 </template>
-
-<style scoped>
-.read-the-docs {
-  color: #888;
-}
-</style>
